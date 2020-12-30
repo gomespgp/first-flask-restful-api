@@ -15,11 +15,20 @@ class ItemModel(db.Model):
         self.store_id: int = store_id
 
     def json(self) -> dict:
-        return {'name': self.name, 'price': self.price}
+        return {
+            'id': self.id,
+            'name': self.name,
+            'price': self.price,
+            'store_id': self.store_id
+        }
 
     @classmethod
     def find_by_name(cls, name: str) -> object:
         return cls.query.filter_by(name=name).first() # SELECT * FROM items WHERE name=name LIMIT 1
+
+    @classmethod
+    def find_all(cls):
+        return cls.query.all()
 
     def upsert_to_db(self) -> None:
         db.session.add(self)

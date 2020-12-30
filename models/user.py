@@ -11,8 +11,18 @@ class UserModel(db.Model):
         self.username: str = username
         self.password: str = password
 
+    def json(self) -> dict:
+        return {
+            'id': self.id,
+            'username': self.username
+        }
+
     def upsert_to_db(self):
         db.session.add(self)
+        db.session.commit()
+
+    def delete_from_db(self):
+        db.session.delete(self)
         db.session.commit()
 
     @classmethod

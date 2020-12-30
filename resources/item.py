@@ -1,5 +1,11 @@
 from flask_restful import Resource, reqparse
-from flask_jwt import jwt_required
+from flask_jwt_extended import (
+    jwt_required,
+    get_jwt_claims,
+    jwt_optional,
+    get_jwt_identity,
+    fresh_jwt_required
+)
 from models.item import ItemModel
 
 class Item(Resource):
@@ -15,13 +21,13 @@ class Item(Resource):
         help='Every item needs a store id.'
     )
 
-    @jwt_required()
+    @jwt_required
     def get(self, name: str) -> dict:
-        item = ItemModel.find_by_name(name)
-        if item:
+        if item := ItemModel.find_by_name(name):
             return item.json()
         return {'message': 'Item not found.'}, 404
 
+    @fresh_jwt_required
     def post(self, name: str) -> dict:
         if ItemModel.find_by_name(name):
             return {'message': f'An item with name {name} already exists.'}, 400
@@ -38,14 +44,19 @@ class Item(Resource):
 
         return item.json(), 201
 
+    @jwt_required
     def delete(self, name: str) -> dict:
+        claims = get_jwt_claims()
+        if not claims['is_admin']:
+            return {'message': 'Admin privilege required.'}, 401
+
         if item := ItemModel.find_by_name(name):
             item.delete_from_db()
         else:
             return {'message': 'Item not found.'}, 404
         return {'message': 'Item deleted.'}, 200
 
-
+    @jwt_required
     def put(self, name: str) -> dict:
         data = Item.parser.parse_args()
 
@@ -69,5 +80,12 @@ class Item(Resource):
         return item.json()
 
 class ItemList(Resource):
+    @jwt_optional
     def get(self) -> dict:
-        return {'items': [item.json() for item in ItemModel.query.all()]} # Before: {'items': [item for item in [{'name': item[1], 'price': item[2]} for item in list(result)]]}
+        items = [item.json() for item in ItemModel.find_all()]
+        if user_id := get_jwt_identity():
+            return {'items': items}, 200
+        return {
+            'items': [item['name'] for item in items],
+            'message': 'More data avaiable if you log in.'
+        }, 200
